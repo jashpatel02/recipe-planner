@@ -42,7 +42,7 @@ export function usePlanner() {
           const snap = await getDoc(ref);
           setPlanner(snap.exists() ? { ...emptyPlanner(), ...snap.data() } : emptyPlanner());
         } catch (err) {
-          console.error("Failed to load planner from database:", err);
+          console.error("Failed to load planner:", err);
           setPlanner(emptyPlanner());
         } finally {
           setLoading(false);
@@ -58,9 +58,10 @@ export function usePlanner() {
       localStorage.setItem("planner", JSON.stringify(newPlanner));
     } else {
       try {
+        // Save current active plan
         await setDoc(doc(db, "users", user.uid, "planner", "current"), newPlanner);
-
-        // Save snapshot for history
+        
+        // Save history snapshot
         const weekId = getWeekId(new Date());
         await setDoc(doc(db, "users", user.uid, "history", weekId), {
           weekId,
@@ -68,7 +69,7 @@ export function usePlanner() {
           planner: newPlanner,
         });
       } catch (err) {
-        console.error("Failed to save planner to database:", err);
+        console.error("Failed to save planner:", err);
       }
     }
   };
@@ -82,7 +83,7 @@ export function usePlanner() {
       return snap.docs.map((d) => d.data());
     } catch (err) {
       console.error("Failed to load history:", err);
-      return []; // Return empty array so the UI doesn't crash
+      throw err;
     }
   };
 

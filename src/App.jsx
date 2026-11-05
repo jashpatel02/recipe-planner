@@ -24,7 +24,7 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase/config";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
 function AppInner() {
   const { user, isGuest, loading: authLoading, continueAsGuest } = useAuth();
@@ -35,12 +35,10 @@ function AppInner() {
   const [favorites, setFavorites] = useLocalStorage("favorites", []);
   const [selectedId, setSelectedId] = useState(null);
   
-  // App states
   const [showAuth, setShowAuth] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
 
-  // If they're logged in or in guest mode, skip the welcome screen
   useEffect(() => {
     if (user || isGuest) setHasStarted(true);
   }, [user, isGuest]);
@@ -53,7 +51,6 @@ function AppInner() {
       setResults(combined);
     } catch (err) {
       console.error("Search failed:", err);
-      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -83,7 +80,6 @@ function AppInner() {
     }
   };
 
-  // Fast drink fetch - we map right away instead of waiting for extra API calls
   const handleBeverage = async (type) => {
     setLoading(true);
     try {
@@ -92,13 +88,11 @@ function AppInner() {
         setResults([]);
         return;
       }
-      
       const formatted = drinks.map(d => drinkToMealFormat({
         ...d,
         strAlcoholic: type,
         strInstructions: "Click to load full instructions and ingredients!",
       }));
-      
       setResults(formatted);
     } catch (err) {
       console.error("Drink fetch failed:", err);
@@ -122,9 +116,7 @@ function AppInner() {
 
   const addToPlanner = (day, meal) => {
     const full = favorites.find(f => f.idMeal === meal.idMeal) || meal;
-    // Make sure it's not blank and not already there
     if (!full.strMeal || planner[day]?.some(m => m.idMeal === full.idMeal)) return;
-    
     savePlanner({ ...planner, [day]: [...(planner[day] || []), full] });
   };
 
@@ -141,6 +133,13 @@ function AppInner() {
     }
   };
 
+  
+  const handleSaveWeek = () => {
+    
+    savePlanner({ ...planner });
+    alert("Week saved to your History!");
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -155,7 +154,6 @@ function AppInner() {
     return <div style={{ padding: 50, textAlign: "center", fontWeight: "bold" }}>Booting up the kitchen...</div>;
   }
 
-  // --- LANDING PAGE ---
   if (!hasStarted) {
     return (
       <div className="welcome-screen">
@@ -186,7 +184,6 @@ function AppInner() {
     );
   }
 
-  // --- MAIN APP ---
   return (
     <div className="app">
       <header>
@@ -236,12 +233,24 @@ function AppInner() {
           onRemoveFavorite={toggleFavorite}
         />
 
-        <Planner
-          planner={planner}
-          onDropMeal={addToPlanner}
-          onRemove={removeFromPlanner}
-          onClear={clearPlanner}
-        />
+        <section className="panel planner-panel">
+          <h2>📅 Weekly Planner</h2>
+          <Planner
+            planner={planner}
+            onDropMeal={addToPlanner}
+            onRemove={removeFromPlanner}
+            onClear={clearPlanner}
+          />
+          {/* NEW BUTTON */}
+          {!isGuest && (
+            <button 
+              onClick={handleSaveWeek} 
+              style={{ marginTop: "10px", width: "100%", background: "#27ae60" }}
+            >
+              💾 Save Week to History
+            </button>
+          )}
+        </section>
       </main>
 
       <InventoryPanel onCardClick={setSelectedId} />

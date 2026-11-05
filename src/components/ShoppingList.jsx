@@ -9,7 +9,7 @@ export default function ShoppingList({ planner }) {
     setLoading(true);
     setItems([]);
 
-    // Get EVERY meal ID, including duplicates (e.g. Monday coffee, Tuesday coffee)
+    
     const allIds = [];
     Object.values(planner).forEach((meals) => {
       meals.forEach((m) => allIds.push(m.idMeal));
@@ -23,7 +23,7 @@ export default function ShoppingList({ planner }) {
 
     const bag = {};
 
-    // Fetch details for every single meal in the list
+    
     for (const id of allIds) {
       try {
         const meal = await getRecipeById(id);
@@ -33,7 +33,7 @@ export default function ShoppingList({ planner }) {
           const key = name.toLowerCase().trim();
           const cleanMeasure = (measure || "").toLowerCase();
           
-          // Look for a number at the start (e.g., "2 cups", "1.5 tbsp", "500g")
+          
           const numMatch = cleanMeasure.match(/^([\d.]+)\s*(.*)/);
           
           if (!bag[key]) {
@@ -54,16 +54,16 @@ export default function ShoppingList({ planner }) {
       }
     }
 
-    // Convert bag into a readable list
+   
     const finalList = Object.values(bag).map(it => {
       let finalMeasure = "";
       
       if (it.totalNumber > 0) {
-        // Format nicely: e.g. "2 cups" or just "2" if no unit
+        
         finalMeasure = `${it.totalNumber} ${it.unit}`.trim();
       } 
       
-      // If there are random measures (like "a pinch"), add them too
+      
       if (it.rawMeasures.size > 0) {
         const extras = Array.from(it.rawMeasures).join(", ");
         finalMeasure = finalMeasure ? `${finalMeasure} + ${extras}` : extras;
