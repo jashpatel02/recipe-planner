@@ -2,7 +2,9 @@ import { useState } from "react";
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  updateProfile 
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
 import { auth } from "../firebase/config";
 
@@ -39,6 +41,21 @@ export default function AuthModal({ onClose, onLoginSuccess }) {
       } else {
         setError(err.message.replace("Firebase: ", ""));
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      if (onLoginSuccess) onLoginSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message.replace("Firebase: ", ""));
     } finally {
       setLoading(false);
     }
@@ -84,6 +101,15 @@ export default function AuthModal({ onClose, onLoginSuccess }) {
             {loading ? "Hang tight..." : mode === "signin" ? "Sign In" : "Sign Up"}
           </button>
         </form>
+
+        <div className="auth-divider">
+          <span>OR</span>
+        </div>
+
+        <button type="button" className="google-btn" onClick={handleGoogleLogin} disabled={loading}>
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18" />
+          Continue with Google
+        </button>
         
         <p className="switch-mode">
           {mode === "signin" ? "Don't have an account?" : "Already registered?"}{" "}
