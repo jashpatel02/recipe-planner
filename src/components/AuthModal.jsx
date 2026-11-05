@@ -1,25 +1,24 @@
 import { useState } from "react";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile,
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile 
 } from "firebase/auth";
 import { auth } from "../firebase/config";
-import { useAuth } from "../contexts/AuthContext";
 
-export default function AuthModal({ onClose }) {
+export default function AuthModal({ onClose, onLoginSuccess }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { continueAsGuest } = useAuth();
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    
     try {
       if (mode === "signup") {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -27,21 +26,19 @@ export default function AuthModal({ onClose }) {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      
+      if (onLoginSuccess) onLoginSuccess();
       onClose();
+      
     } catch (err) {
-      setError(err.message.replace("Firebase: ", ""));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuest = async () => {
-    setLoading(true);
-    try {
-      await continueAsGuest();
-      onClose();
-    } catch (err) {
-      setError(err.message);
+      // Clean up the ugly firebase errors
+      if (err.code === "auth/invalid-credential") {
+        setError("Wrong email or password.");
+      } else if (err.code === "auth/email-already-in-use") {
+        setError("That email is already registered.");
+      } else {
+        setError(err.message.replace("Firebase: ", ""));
+      }
     } finally {
       setLoading(false);
     }
@@ -51,38 +48,45 @@ export default function AuthModal({ onClose }) {
     <div className="modal" onClick={onClose}>
       <div className="modal-content auth-modal" onClick={(e) => e.stopPropagation()}>
         <span className="close" onClick={onClose}>&times;</span>
-        <h2>{mode === "signin" ? "Sign In" : "Sign Up"}</h2>
+        
+        <h2>{mode === "signin" ? "Welcome Back" : "Create Account"}</h2>
+        
+        {error && <p className="error">{error}</p>}
+        
         <form onSubmit={submit}>
           {mode === "signup" && (
             <input
               type="text"
-              placeholder="Your name"
+              placeholder="First Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           )}
+          
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          
           <input
             type="password"
-            placeholder="Password (min 6 chars)"
+            placeholder="Password (at least 6 chars)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
           />
-          {error && <p className="error">{error}</p>}
+          
           <button type="submit" disabled={loading}>
-            {loading ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
+            {loading ? "Hang tight..." : mode === "signin" ? "Sign In" : "Sign Up"}
           </button>
         </form>
+        
         <p className="switch-mode">
-          {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
+          {mode === "signin" ? "Don't have an account?" : "Already registered?"}{" "}
           <button
             type="button"
             className="link-btn"
@@ -91,13 +95,9 @@ export default function AuthModal({ onClose }) {
               setError("");
             }}
           >
-            {mode === "signin" ? "Create account" : "Sign in"}
+            {mode === "signin" ? "Sign Up" : "Sign In"}
           </button>
         </p>
-        <hr />
-        <button className="guest-btn" onClick={handleGuest} disabled={loading}>
-          Continue as Guest
-        </button>
       </div>
     </div>
   );

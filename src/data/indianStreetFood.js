@@ -5,7 +5,8 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_samosa",
     strMeal: "Samosa",
-    strMealThumb: "/images/samosa.jpg",
+    // Check your folder: is it samosa.jpeg or samosa.jpg?
+    strMealThumb: "/images/samosa.jpeg", 
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
@@ -21,7 +22,7 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_chaat",
     strMeal: "Chaat",
-    strMealThumb: "/images/chaat.jpg",
+    strMealThumb: "/images/chaat.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
@@ -37,7 +38,7 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_vadapav",
     strMeal: "Vada Pav",
-    strMealThumb: "/images/vadapav.jpg",
+    strMealThumb: "/images/vadapav.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
@@ -53,7 +54,7 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_pavbhaji",
     strMeal: "Pav Bhaji",
-    strMealThumb: "/images/pavbhaji.jpg",
+    strMealThumb: "/images/pavbhaji.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
@@ -69,7 +70,7 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_bhelpuri",
     strMeal: "Bhel Puri",
-    strMealThumb: "/images/bhelpuri.jpg",
+    strMealThumb: "/images/bhelpuri.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
@@ -85,13 +86,13 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_panipuri",
     strMeal: "Pani Puri",
-    strMealThumb: "/images/panipuri.jpg",
+    strMealThumb: "/images/panipuri.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:
       "1. Fill puris with boiled potato and chickpea mixture. 2. Prepare spicy mint-coriander pani with tamarind and spices. 3. Serve puris with pani; assemble and eat immediately.",
     strIngredient1: "Puri Shells", strMeasure1: "12",
-    strIngredient2: "Potato", strMeasure1: "1 boiled",
+    strIngredient2: "Potato", strMeasure2: "1 boiled",
     strIngredient3: "Chickpeas", strMeasure3: "1/2 cup boiled",
     strIngredient4: "Mint Leaves", strMeasure4: "1 cup",
     strIngredient5: "Tamarind", strMeasure5: "2 tbsp",
@@ -101,7 +102,7 @@ export const INDIAN_STREET_FOOD = [
   {
     idMeal: "local_alootikki",
     strMeal: "Aloo Tikki",
-    strMealThumb: "/images/alootikki.jpg",
+    strMealThumb: "/images/alootikki.jpeg",
     strCategory: "Street Food",
     strArea: "Indian",
     strInstructions:

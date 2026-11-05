@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { usePlanner } from "./hooks/usePlanner";
@@ -13,30 +13,37 @@ import CuisineTabs from "./components/CuisineTabs";
 import AuthModal from "./components/AuthModal";
 import ThemeToggle from "./components/ThemeToggle";
 import History from "./components/History";
-import {
-  searchEverything,
-  filterByArea,
-  filterByCategory,
-  filterCocktailsByAlcoholic,
-  getCocktailById,
-  drinkToMealFormat,
+import { 
+  searchEverything, 
+  filterByArea, 
+  filterByCategory, 
+  filterCocktailsByAlcoholic, 
+  drinkToMealFormat 
 } from "./api";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase/config";
 
-const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function AppInner() {
-  const { user, isGuest, loading: authLoading } = useAuth();
+  const { user, isGuest, loading: authLoading, continueAsGuest } = useAuth();
   const { planner, savePlanner } = usePlanner();
 
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useLocalStorage("favorites", []);
   const [selectedId, setSelectedId] = useState(null);
+  
+  // App states
   const [showAuth, setShowAuth] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+
+  // If they're logged in or in guest mode, skip the welcome screen
+  useEffect(() => {
+    if (user || isGuest) setHasStarted(true);
+  }, [user, isGuest]);
 
   const handleSearch = async (q) => {
     if (!q.trim()) return;
@@ -44,8 +51,8 @@ function AppInner() {
     try {
       const combined = await searchEverything(q);
       setResults(combined);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error("Search failed:", err);
       setResults([]);
     } finally {
       setLoading(false);
@@ -56,14 +63,9 @@ function AppInner() {
     setLoading(true);
     try {
       const meals = await filterByArea(area);
-      if (!meals || meals.length === 0) {
-        setResults([]);
-        return;
-      }
-      setResults(meals);
-    } catch (e) {
-      console.error("Cuisine fetch failed:", e);
-      setResults([]);
+      setResults(meals || []);
+    } catch (err) {
+      console.error("Could not fetch cuisine:", err);
     } finally {
       setLoading(false);
     }
@@ -73,19 +75,15 @@ function AppInner() {
     setLoading(true);
     try {
       const meals = await filterByCategory(cat);
-      if (!meals || meals.length === 0) {
-        setResults([]);
-        return;
-      }
-      setResults(meals);
-    } catch (e) {
-      console.error("Category fetch failed:", e);
-      setResults([]);
+      setResults(meals || []);
+    } catch (err) {
+      console.error("Could not fetch category:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fast drink fetch - we map right away instead of waiting for extra API calls
   const handleBeverage = async (type) => {
     setLoading(true);
     try {
@@ -94,61 +92,51 @@ function AppInner() {
         setResults([]);
         return;
       }
-
-      const details = [];
-      // Fetching full details for the first 8 drinks
-      for (let i = 0; i < drinks.length; i++) {
-        try {
-          const full = await getCocktailById(drinks[i].idDrink);
-          if (full) {
-            details.push(full);
-          } else {
-            // Fallback if the API drops a specific drink
-            details.push({
-              idDrink: drinks[i].idDrink,
-              strDrink: drinks[i].strDrink,
-              strDrinkThumb: drinks[i].strDrinkThumb,
-              strAlcoholic: type,
-              strInstructions: "Click to view more details.",
-            });
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch drink ${drinks[i].idDrink}:`, err.message);
-        }
-      }
-      setResults(details.map(drinkToMealFormat));
-    } catch (e) {
-      console.error("Beverage fetch failed:", e);
-      setResults([]);
+      
+      const formatted = drinks.map(d => drinkToMealFormat({
+        ...d,
+        strAlcoholic: type,
+        strInstructions: "Click to load full instructions and ingredients!",
+      }));
+      
+      setResults(formatted);
+    } catch (err) {
+      console.error("Drink fetch failed:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const toggleFavorite = (meal) => {
-    const exists = favorites.some((f) => f.idMeal === meal.idMeal);
+    const exists = favorites.some(f => f.idMeal === meal.idMeal);
     if (exists) {
-      setFavorites(favorites.filter((f) => f.idMeal !== meal.idMeal));
+      setFavorites(favorites.filter(f => f.idMeal !== meal.idMeal));
     } else {
-      setFavorites([
-        ...favorites,
-        { idMeal: meal.idMeal, strMeal: meal.strMeal, strMealThumb: meal.strMealThumb },
-      ]);
+      setFavorites([...favorites, { 
+        idMeal: meal.idMeal, 
+        strMeal: meal.strMeal, 
+        strMealThumb: meal.strMealThumb 
+      }]);
     }
   };
 
   const addToPlanner = (day, meal) => {
-    const full = favorites.find((f) => f.idMeal === meal.idMeal) || meal;
-    if (!full.strMeal || planner[day]?.some((m) => m.idMeal === full.idMeal)) return;
+    const full = favorites.find(f => f.idMeal === meal.idMeal) || meal;
+    // Make sure it's not blank and not already there
+    if (!full.strMeal || planner[day]?.some(m => m.idMeal === full.idMeal)) return;
+    
     savePlanner({ ...planner, [day]: [...(planner[day] || []), full] });
   };
 
   const removeFromPlanner = (day, idMeal) => {
-    savePlanner({ ...planner, [day]: planner[day].filter((m) => m.idMeal !== idMeal) });
+    savePlanner({ 
+      ...planner, 
+      [day]: planner[day].filter(m => m.idMeal !== idMeal) 
+    });
   };
 
   const clearPlanner = () => {
-    if (confirm("Clear the entire week?")) {
+    if (window.confirm("Are you sure you want to clear the whole week?")) {
       savePlanner(DAYS.reduce((acc, d) => ({ ...acc, [d]: [] }), {}));
     }
   };
@@ -156,36 +144,68 @@ function AppInner() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-    } catch (e) {
-      console.warn("Sign-out failed:", e.message);
+    } catch (err) {
+      console.warn("Sign out error:", err.message);
     }
     localStorage.removeItem("planner");
+    setHasStarted(false); 
   };
 
-  if (authLoading) return <p style={{ padding: 40 }}>Loading...</p>;
+  if (authLoading) {
+    return <div style={{ padding: 50, textAlign: "center", fontWeight: "bold" }}>Booting up the kitchen...</div>;
+  }
 
+  // --- LANDING PAGE ---
+  if (!hasStarted) {
+    return (
+      <div className="welcome-screen">
+        <div className="welcome-card">
+          <h1>🍽️ Recipe Finder</h1>
+          <p>Plan your week, build grocery lists, and find new dishes to cook.</p>
+          
+          <div className="welcome-actions">
+            <button className="primary-btn" onClick={() => setShowAuth(true)}>
+              Sign In / Create Account
+            </button>
+            <button className="secondary-btn" onClick={() => { 
+              continueAsGuest(); 
+              setHasStarted(true); 
+            }}>
+              Continue as Guest
+            </button>
+          </div>
+        </div>
+        
+        {showAuth && (
+          <AuthModal 
+            onClose={() => setShowAuth(false)} 
+            onLoginSuccess={() => setHasStarted(true)} 
+          />
+        )}
+      </div>
+    );
+  }
+
+  // --- MAIN APP ---
   return (
     <div className="app">
       <header>
         <div className="header-top">
-          <h1>🍽️ Recipe Finder & Meal Planner</h1>
+          <h1>🍽️ Meal Planner</h1>
           <div className="header-actions">
             <ThemeToggle />
-            {!user && !isGuest && (
-              <button onClick={() => setShowAuth(true)}>Sign In</button>
-            )}
             {isGuest && <span className="badge">Guest</span>}
             {user && !isGuest && (
               <>
-                <button onClick={() => setShowHistory(true)}>History</button>
-                <button className="danger-btn" onClick={handleSignOut}>
-                  Sign Out
-                </button>
+                <button onClick={() => setShowHistory(true)}>My History</button>
+                <button className="danger-btn" onClick={handleSignOut}>Sign Out</button>
               </>
             )}
           </div>
         </div>
+        
         <SearchBar onSearch={handleSearch} />
+        
         <CuisineTabs
           onSelectCuisine={handleCuisine}
           onSelectCategory={handleCategory}
@@ -196,9 +216,9 @@ function AppInner() {
 
       <main>
         <section className="panel">
-          <h2>🔎 Results (drag any card to planner)</h2>
+          <h2>🔎 Search Results</h2>
           {loading ? (
-            <p>Loading...</p>
+            <p className="hint">Loading recipes...</p>
           ) : (
             <RecipeGrid
               meals={results}
@@ -231,7 +251,6 @@ function AppInner() {
         <RecipeModal mealId={selectedId} onClose={() => setSelectedId(null)} />
       )}
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showHistory && <History onClose={() => setShowHistory(false)} />}
     </div>
   );
