@@ -33,11 +33,12 @@ export default function AuthModal({ onClose, onLoginSuccess }) {
       onClose();
       
     } catch (err) {
-      // Clean up the ugly firebase errors
       if (err.code === "auth/invalid-credential") {
         setError("Wrong email or password.");
       } else if (err.code === "auth/email-already-in-use") {
         setError("That email is already registered.");
+      } else if (err.code === "auth/operation-not-allowed") {
+        setError("Please enable Email/Password in Firebase console.");
       } else {
         setError(err.message.replace("Firebase: ", ""));
       }
@@ -55,7 +56,13 @@ export default function AuthModal({ onClose, onLoginSuccess }) {
       if (onLoginSuccess) onLoginSuccess();
       onClose();
     } catch (err) {
-      setError(err.message.replace("Firebase: ", ""));
+      if (err.code === "auth/operation-not-allowed") {
+        setError("Please enable Google login in Firebase console.");
+      } else if (err.code === "auth/unauthorized-domain") {
+        setError("This domain is not authorized in Firebase.");
+      } else {
+        setError(err.message.replace("Firebase: ", ""));
+      }
     } finally {
       setLoading(false);
     }
@@ -107,7 +114,6 @@ export default function AuthModal({ onClose, onLoginSuccess }) {
         </div>
 
         <button type="button" className="google-btn" onClick={handleGoogleLogin} disabled={loading}>
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18" />
           Continue with Google
         </button>
         
