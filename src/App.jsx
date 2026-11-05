@@ -56,7 +56,11 @@ function AppInner() {
     setLoading(true);
     try {
       const meals = await filterByArea(area);
-      setResults(meals); // Now using the instant list!
+      if (!meals || meals.length === 0) {
+        setResults([]);
+        return;
+      }
+      setResults(meals);
     } catch (e) {
       console.error("Cuisine fetch failed:", e);
       setResults([]);
@@ -69,7 +73,11 @@ function AppInner() {
     setLoading(true);
     try {
       const meals = await filterByCategory(cat);
-      setResults(meals); // Now using the instant list!
+      if (!meals || meals.length === 0) {
+        setResults([]);
+        return;
+      }
+      setResults(meals);
     } catch (e) {
       console.error("Category fetch failed:", e);
       setResults([]);
@@ -82,7 +90,33 @@ function AppInner() {
     setLoading(true);
     try {
       const drinks = await filterCocktailsByAlcoholic(type);
-      setResults(drinks.map(drinkToMealFormat));
+      if (!drinks || drinks.length === 0) {
+        setResults([]);
+        return;
+      }
+
+      const details = [];
+      // Fetching full details for the first 8 drinks
+      for (let i = 0; i < drinks.length; i++) {
+        try {
+          const full = await getCocktailById(drinks[i].idDrink);
+          if (full) {
+            details.push(full);
+          } else {
+            // Fallback if the API drops a specific drink
+            details.push({
+              idDrink: drinks[i].idDrink,
+              strDrink: drinks[i].strDrink,
+              strDrinkThumb: drinks[i].strDrinkThumb,
+              strAlcoholic: type,
+              strInstructions: "Click to view more details.",
+            });
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch drink ${drinks[i].idDrink}:`, err.message);
+        }
+      }
+      setResults(details.map(drinkToMealFormat));
     } catch (e) {
       console.error("Beverage fetch failed:", e);
       setResults([]);

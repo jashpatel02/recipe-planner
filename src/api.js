@@ -3,7 +3,6 @@ const COCKTAILDB_BASE = "https://www.thecocktaildb.com/api/json/v1/1";
 
 import { INDIAN_STREET_FOOD } from "./data/indianStreetFood";
 
-// Hardcoded fallbacks because TheMealDB API randomly drops Indian & French
 const FALLBACK_IDS = {
   Indian: [
     "52785", "52819", "52821", "52822", "52823", "52824", "52825", "52826",
@@ -15,7 +14,6 @@ const FALLBACK_IDS = {
   ]
 };
 
-// ---------------- TheMealDB ----------------
 export async function searchRecipes(query) {
   const res = await fetch(`${MEALDB_BASE}/search.php?s=${encodeURIComponent(query)}`);
   const data = await res.json();
@@ -26,13 +24,11 @@ export async function filterByArea(area) {
   const res = await fetch(`${MEALDB_BASE}/filter.php?a=${encodeURIComponent(area)}`);
   const data = await res.json();
   
-  // If API fails (returns null), use our hardcoded IDs
   if (!data.meals && FALLBACK_IDS[area]) {
     const promises = FALLBACK_IDS[area].map(id => getMealById(id));
     const results = await Promise.all(promises);
     return results.filter(Boolean);
   }
-  
   return data.meals || [];
 }
 
@@ -54,17 +50,17 @@ export async function getMealById(id) {
   return data.meals ? data.meals[0] : null;
 }
 
-// ---------------- TheCocktailDB ----------------
 export async function searchCocktails(query) {
   const res = await fetch(`${COCKTAILDB_BASE}/search.php?s=${encodeURIComponent(query)}`);
   const data = await res.json();
   return data.drinks || [];
 }
 
+// ✅ FIXED: Handles null responses from the CocktailDB safely
 export async function filterCocktailsByAlcoholic(type) {
   const res = await fetch(`${COCKTAILDB_BASE}/filter.php?a=${type}`);
   const data = await res.json();
-  return data.drinks || [];
+  return data.drinks || []; // Returns empty array instead of null
 }
 
 export async function getCocktailById(id) {
@@ -95,7 +91,6 @@ export function drinkToMealFormat(drink) {
   };
 }
 
-// ---------------- Local Indian Street Food ----------------
 export function getIndianStreetFoodById(id) {
   return INDIAN_STREET_FOOD.find((m) => m.idMeal === id) || null;
 }
@@ -109,7 +104,6 @@ export function searchIndianStreetFood(query) {
   );
 }
 
-// ---------------- Ingredient keyword search ----------------
 export async function searchByIngredientKeyword(ingredient) {
   try {
     const res = await fetch(`${MEALDB_BASE}/filter.php?i=${encodeURIComponent(ingredient)}`);
