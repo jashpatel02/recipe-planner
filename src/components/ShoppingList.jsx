@@ -9,19 +9,22 @@ export default function ShoppingList({ planner }) {
     setLoading(true);
     setItems([]);
 
-    // Get all unique meal IDs from the planner
-    const ids = new Set();
-    Object.values(planner).forEach(meals => meals.forEach(m => ids.add(m.idMeal)));
+    // Get EVERY meal ID, including duplicates (e.g. Monday coffee, Tuesday coffee)
+    const allIds = [];
+    Object.values(planner).forEach((meals) => {
+      meals.forEach((m) => allIds.push(m.idMeal));
+    });
 
-    if (ids.size === 0) {
-      setItems([{ name: "Nothing planned yet. Drag some recipes into the week!", measures: "", isChecked: false }]);
+    if (allIds.length === 0) {
+      setItems([{ name: "No meals planned yet.", measures: "", isChecked: false }]);
       setLoading(false);
       return;
     }
 
-    const bag = {}; // Using 'bag' instead of 'ingredientMap' feels more human
+    const bag = {};
 
-    for (const id of ids) {
+    // Fetch details for every single meal in the list
+    for (const id of allIds) {
       try {
         const meal = await getRecipeById(id);
         if (!meal) continue;
@@ -30,20 +33,18 @@ export default function ShoppingList({ planner }) {
           const key = name.toLowerCase().trim();
           const cleanMeasure = (measure || "").toLowerCase();
           
-          // Try to find a number at the start of the measure (e.g., "2 cups" -> 2)
-          const numMatch = cleanMeasure.match(/^([\d.]+)/);
+          // Look for a number at the start (e.g., "2 cups", "1.5 tbsp", "500g")
+          const numMatch = cleanMeasure.match(/^([\d.]+)\s*(.*)/);
           
           if (!bag[key]) {
             bag[key] = { name, totalNumber: 0, unit: "", rawMeasures: new Set() };
           }
 
-          if (numMatch && cleanMeasure.length > 1) {
+          if (numMatch) {
             const num = parseFloat(numMatch[1]);
-            const unit = cleanMeasure.replace(/^([\d.]+)/, "").trim();
-            
+            const unit = numMatch[2].trim();
             bag[key].totalNumber += num;
-            // Keep the last unit we saw (imperfect, but works for most cases)
-            if (unit) bag[key].unit = unit; 
+            if (unit) bag[key].unit = unit; // Save the latest unit
           } else if (cleanMeasure) {
             bag[key].rawMeasures.add(measure.trim());
           }
@@ -53,14 +54,19 @@ export default function ShoppingList({ planner }) {
       }
     }
 
-    // Convert our bag into a list
+    // Convert bag into a readable list
     const finalList = Object.values(bag).map(it => {
       let finalMeasure = "";
       
       if (it.totalNumber > 0) {
+        // Format nicely: e.g. "2 cups" or just "2" if no unit
         finalMeasure = `${it.totalNumber} ${it.unit}`.trim();
-      } else if (it.rawMeasures.size > 0) {
-        finalMeasure = Array.from(it.rawMeasures).join(", ");
+      } 
+      
+      // If there are random measures (like "a pinch"), add them too
+      if (it.rawMeasures.size > 0) {
+        const extras = Array.from(it.rawMeasures).join(", ");
+        finalMeasure = finalMeasure ? `${finalMeasure} + ${extras}` : extras;
       }
       
       return {

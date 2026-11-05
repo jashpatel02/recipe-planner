@@ -13,6 +13,7 @@ export default function History({ onClose }) {
       setLoading(false);
       return;
     }
+    
     loadHistory().then((data) => {
       setWeeks(data);
       setLoading(false);
@@ -24,20 +25,23 @@ export default function History({ onClose }) {
       <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
         <span className="close" onClick={onClose}>&times;</span>
         <h2>📜 Your History</h2>
-        {isGuest && (
-          <p className="hint">Guest mode — sign in to save your weekly plans.</p>
+        
+        {loading && <p className="hint">Loading your past weeks...</p>}
+        
+        {!loading && isGuest && (
+          <p className="hint">You are in Guest mode. Sign in to save and view your weekly plans.</p>
         )}
-        {loading && <p>Loading...</p>}
-        {!loading && weeks.length === 0 && !isGuest && (
-          <p className="hint">No saved weeks yet. Your plans will appear here.</p>
+        
+        {!loading && !isGuest && weeks.length === 0 && (
+          <p className="hint">No saved weeks yet. Start dragging meals into your planner!</p>
         )}
+
         <div className="history-list">
           {weeks.map((w) => (
             <div key={w.weekId} className="history-item">
               <h3>{w.weekId}</h3>
-              <p className="hint">
-                Saved {new Date(w.savedAt).toLocaleDateString()}
-              </p>
+              <p className="hint">Saved {new Date(w.savedAt).toLocaleDateString()}</p>
+              
               <div className="history-meals">
                 {Object.entries(w.planner || {}).map(([day, meals]) =>
                   meals.length > 0 ? (

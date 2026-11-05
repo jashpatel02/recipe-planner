@@ -1,51 +1,55 @@
-import { useEffect, useState } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { doc, getDoc, setDoc, collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../contexts/AuthContext";
 
+const DAYS = [
+  "Monday", "Tuesday", "Wednesday", "Thursday",
+  "Friday", "Saturday", "Sunday",
+];
+
 const emptyPlanner = () =>
-  ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    .reduce((acc, d) => ({ ...acc, [d]: [] }), {});
+  DAYS.reduce((acc, d) => ({ ...acc, [d]: [] }), {});
+
+function getWeekId(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
 
 export function usePlanner() {
   const { user, isGuest } = useAuth();
   const [planner, setPlanner] = useState(emptyPlanner());
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load
   useEffect(() => {
-    let cancelled = false;
-
     async function load() {
+      setLoading(true);
       if (!user || isGuest) {
-        // Guest / no user → localStorage only
         try {
-          const saved = JSON.parse(localStorage.getItem("planner") || "null");
-          if (!cancelled) setPlanner(saved || emptyPlanner());
+          const saved = JSON.parse(localStorage.getItem("planner") || "{}");
+          setPlanner({ ...emptyPlanner(), ...saved });
         } catch {
-          if (!cancelled) setPlanner(emptyPlanner());
+          setPlanner(emptyPlanner());
         }
-        setLoaded(true);
+        setLoading(false);
       } else {
-        // Logged in → Firestore
         try {
           const ref = doc(db, "users", user.uid, "planner", "current");
           const snap = await getDoc(ref);
-          if (!cancelled) {
-            setPlanner(snap.exists() ? snap.data().data : emptyPlanner());
-          }
-        } catch (e) {
-          console.error("Firestore load failed", e);
-          if (!cancelled) setPlanner(emptyPlanner());
+          setPlanner(snap.exists() ? { ...emptyPlanner(), ...snap.data() } : emptyPlanner());
+        } catch (err) {
+          console.error("Failed to load planner from database:", err);
+          setPlanner(emptyPlanner());
+        } finally {
+          setLoading(false);
         }
-        setLoaded(true);
       }
     }
-
     load();
-    return () => {
-      cancelled = true;
-    };
   }, [user, isGuest]);
 
   const savePlanner = async (newPlanner) => {
@@ -54,30 +58,33 @@ export function usePlanner() {
       localStorage.setItem("planner", JSON.stringify(newPlanner));
     } else {
       try {
-        const ref = doc(db, "users", user.uid, "planner", "current");
-        await setDoc(ref, { data: newPlanner, updatedAt: new Date().toISOString() });
-        // Save history snapshot (keyed by ISO week)
-        const weekId = getWeekId();
-        const histRef = doc(db, "users", user.uid, "history", weekId);
-        await setDoc(histRef, { data: newPlanner, weekId });
-      } catch (e) {
-        console.error("Firestore save failed", e);
+        await setDoc(doc(db, "users", user.uid, "planner", "current"), newPlanner);
+
+        // Save snapshot for history
+        const weekId = getWeekId(new Date());
+        await setDoc(doc(db, "users", user.uid, "history", weekId), {
+          weekId,
+          savedAt: new Date().toISOString(),
+          planner: newPlanner,
+        });
+      } catch (err) {
+        console.error("Failed to save planner to database:", err);
       }
     }
   };
 
-  return { planner, savePlanner, loaded };
-}
+  const loadHistory = async () => {
+    if (!user || isGuest) return [];
+    try {
+      const ref = collection(db, "users", user.uid, "history");
+      const q = query(ref, orderBy("savedAt", "desc"));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => d.data());
+    } catch (err) {
+      console.error("Failed to load history:", err);
+      return []; // Return empty array so the UI doesn't crash
+    }
+  };
 
-function getWeekId() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  const weekNum =
-    1 +
-    Math.round(
-      ((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
-    );
-  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  return { planner, savePlanner, loading, loadHistory };
 }
